@@ -1769,7 +1769,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api;
     const linCol = (hex) => new THREE.Color(hex).convertSRGBToLinear();
     const soilTopL = linCol(SOIL_TOP), soilBotL = linCol(SOIL_BOT);
     // strata, top to bottom (display sRGB -> linear, as vertex colours are linear in r128)
+    const G = opts.ground && opts.ground.rim ? opts.ground : null;   // round, torn-edge ground disc
     const STRATA = [
+      ...(G ? [
+        { y: G.top + 0.02, c: linCol('#4a4a26') },                    // turf and roots
+        { y: G.top - 0.14, c: soilTopL },                             // dark topsoil
+        { y: -0.65, c: soilTopL.clone().lerp(soilBotL, 0.5) },
+      ] : []),
       { y: B.bottom, c: soilBotL },
       { y: -1.45, c: soilBotL.clone().lerp(soilTopL, 0.45) },
       { y: -1.75, c: soilBotL.clone().multiplyScalar(0.85) },
@@ -1852,14 +1858,24 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api;
     root.add(islandGroup);
 
     // --- island profile -----------------------------------------------------
-    const CX = (B.x0 + B.x1) / 2, CZ = (B.z0 + B.z1) / 2;
-    const HX = (B.x1 - B.x0) / 2, HZ = (B.z1 - B.z0) / 2;
-    const TOPY = B.bottom, DEPTH = 9.0;                      // tip near y = -10.1
+    const CX = G ? G.cx : (B.x0 + B.x1) / 2, CZ = G ? G.cz : (B.z0 + B.z1) / 2;
+    const HX = G ? G.r : (B.x1 - B.x0) / 2, HZ = G ? G.r : (B.z1 - B.z0) / 2;
+    const TOPY = G ? G.top : B.bottom, DEPTH = G ? 10.0 : 9.0;   // tip near y = -10.1
     const LIP = 0.03;                                        // first ~0.27 m drop straight down, flush with the board
     // perimeter samples placed per edge so the 4 corners are hit exactly
-    const NX = 36, NZ = 28, M = 2 * (NX + NZ);
+    const NX = 36, NZ = 28, M = G ? G.rim.length : 2 * (NX + NZ);
     const perim = [];                                        // {x,z} relative to centre, s = arc fraction
-    (function () {
+    if (G) (function () {
+      // follow the host's torn rim exactly (clockwise seen from above)
+      const pts = G.rim.map(([x, z]) => [x - CX, z - CZ]);
+      let acc = 0, P = 0;
+      for (let i = 0; i < pts.length; i++) { const [x, z] = pts[i], [nx, nz] = pts[(i + 1) % pts.length]; P += Math.hypot(nx - x, nz - z); }
+      for (let i = 0; i < pts.length; i++) {
+        const [x, z] = pts[i], L = Math.hypot(x, z);
+        perim.push({ x, z, dx: x / L, dz: z / L, L, Ls: G.r * 0.97, s: acc / P });
+        const [nx, nz] = pts[(i + 1) % pts.length]; acc += Math.hypot(nx - x, nz - z);
+      }
+    })(); else (function () {
       const pts = [];
       for (let i = 0; i < NX; i++) pts.push([-HX + (2 * HX * i) / NX, HZ]);          // front edge (+z), -x -> +x
       for (let i = 0; i < NZ; i++) pts.push([HX, HZ - (2 * HZ * i) / NZ]);           // east edge, +z -> -z
@@ -1908,7 +1924,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api;
       const cols = M + 1, rows = K + 1;
       const pos = new Float32Array(cols * rows * 3), col = new Float32Array(cols * rows * 3), uv = new Float32Array(cols * rows * 2);
       const P = new THREE.Vector3(), c = new THREE.Color();
-      const uRep = Math.round((4 * (HX + HZ)) / 2.6);    // integer repeats: no texture seam
+      const uRep = Math.round((G ? 2 * Math.PI * G.r : 4 * (HX + HZ)) / 2.6);    // integer repeats: no texture seam
       for (let k = 0; k < rows; k++) {
         const t = ringT(k), u = Math.max(0, (t - LIP) / (1 - LIP));
         for (let j = 0; j < cols; j++) {
@@ -1925,7 +1941,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api;
           const lg = u > 0.02 ? ledge(u, p.dx, p.dz).g : 0;
           const ao = 1 - 0.28 * smoothstep(0.75, 1.0, lg) - 0.18 * smoothstep(0.75, 1.0, u);
           c.multiplyScalar(mott * ao);
-          if (t <= LIP) c.copy(soilBotL);           // flush lip matches the board's soil cut exactly
+          if (t <= LIP && !G) c.copy(soilBotL);     // flush lip matches the board's soil cut exactly
           c.multiplyScalar(texComp);
           col[o] = c.r; col[o + 1] = c.g; col[o + 2] = c.b;
           const ou = (k * cols + j) * 2;
@@ -1956,7 +1972,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api;
       for (let k = 0; k <= 1; k++) for (let j = 0; j < cols; j++) {
         const p = perim[j % M], a = k * cols + j;
         const ax = Math.abs(p.x) >= HX - 1e-6, az = Math.abs(p.z) >= HZ - 1e-6;
-        let nx = ax ? Math.sign(p.x) : 0, nz = az ? Math.sign(p.z) : 0;
+        let nx = G ? p.dx : ax ? Math.sign(p.x) : 0, nz = G ? p.dz : az ? Math.sign(p.z) : 0;
         const l = Math.hypot(nx, nz) || 1; n.setXYZ(a, nx / l, 0, nz / l);
       }
       const mat = track(new THREE.MeshStandardMaterial({
@@ -2517,12 +2533,58 @@ const PX0=-7.6,PX1=7.6,PZ0=-4.6,PZ1=7.2;
 const POOL={x0:-0.4,x1:6.3,z0:4.6,z1:PZ1,y:-0.9};
 const CEIL=Y0+WH-0.1,SOFFIT=Y0+WH+0.003;
 
-/* ---------- the slice: plinth with the pool cut in section ---------- */
-const pm=[M.layer,M.layer,M.paver,M.layer,M.layer,M.layer];
-worldBox(PX0,PX1,PB,0,PZ0,POOL.z0,pm);
-worldBox(POOL.x1,PX1,PB,0,POOL.z0,PZ1,pm);
-worldBox(PX0,POOL.x0,PB,0,POOL.z0,PZ1,pm);
-worldBox(POOL.x0,POOL.x1,PB,POOL.y,POOL.z0,PZ1,pm);
+/* ---------- the ground: one round slice of land, torn out of the earth ---------- */
+const GC={cx:0,cz:1.6,r:10.6,top:-0.03},PAVZ1=PZ1+0.65;
+const hsh=i=>{const x=Math.sin(i*127.1+311.7)*43758.5453;return x-Math.floor(x);};
+const RIM=(function(){const n=200,pts=[];for(let i=0;i<n;i++){const th=Math.PI/2-i/n*Math.PI*2;   /* clockwise seen from above */
+  const j=0.024*Math.sin(th*5+1.3)+0.018*Math.sin(th*11+0.4)+0.012*Math.sin(th*23+2.2)+(hsh(i)-0.5)*0.03+((hsh(i*3+7)>0.9)?-0.03:0);
+  const r=GC.r*(1+j);pts.push([GC.cx+Math.cos(th)*r,GC.cz+Math.sin(th)*r]);}return pts;})();
+/* lawn texture */
+const lawnTex=(function(){const [c,g]=cv(512);g.fillStyle='#4f7a34';g.fillRect(0,0,512,512);
+  blotch(g,512,512,90,['rgba(120,150,60,.22)','rgba(40,70,25,.25)','rgba(150,160,80,.15)'],20,80);
+  for(let i=0;i<16000;i++){const x=R()*512,y=R()*512,l=rr(22,48);g.strokeStyle=`hsl(${rr(78,108)},${rr(35,58)}%,${l}%)`;g.lineWidth=rr(0.6,1.4);
+    g.beginPath();g.moveTo(x,y);g.lineTo(x+rr(-2.5,2.5),y-rr(3,8));g.stroke();}
+  grain(g,512,512,10);const t=T(c,1/2.2,1/2.2);return t;})();
+M.lawn=std({map:lawnTex,roughness:0.97,bumpMap:lawnTex,bumpScale:0.015});
+(function(){
+  const sh=new THREE.Shape(RIM.map(([x,z])=>new THREE.Vector2(x,-z)));
+  sh.holes.push(new THREE.Path([[POOL.x0,-POOL.z0],[POOL.x0,-POOL.z1],[POOL.x1,-POOL.z1],[POOL.x1,-POOL.z0]].map(([x,y])=>new THREE.Vector2(x,y))));
+  const g=new THREE.ShapeGeometry(sh,1);g.rotateX(-Math.PI/2);g.translate(0,GC.top,0);
+  mesh(g,M.lawn,null,null,null,false,true);
+  /* torn turf lip that curls over the edge */
+  const n=RIM.length,pos=[],col=[],idx=[],cG=new THREE.Color('#3d6328').convertSRGBToLinear(),cR=new THREE.Color('#3a2b1c').convertSRGBToLinear();
+  for(let i=0;i<=n;i++){const [x,z]=RIM[i%n],dx=x-GC.cx,dz=z-GC.cz,L=Math.hypot(dx,dz),ux=dx/L,uz=dz/L,k=hsh(i%n+50);
+    const rows=[[-0.04,0.004,cG],[0.035+k*0.04,-0.05-k*0.05,cG],[0.02+k*0.03,-0.12-k*0.12,cR]];
+    rows.forEach(([o,y,c])=>{pos.push(x+ux*o,GC.top+y,z+uz*o);col.push(c.r,c.g,c.b);});}
+  for(let i=0;i<n;i++)for(let r=0;r<2;r++){const a=i*3+r,b=a+1,c=a+3,d=c+1;idx.push(a,c,b,b,c,d);}
+  const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));lg.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
+  lg.setIndex(idx);lg.computeVertexNormals();
+  mesh(lg,std({vertexColors:true,roughness:1,side:THREE.DoubleSide}),null,null,null,true,true);
+  /* paved terrace: one slab with the pool cut out */
+  const ps=new THREE.Shape([[PX0,-PZ0],[PX0,-PAVZ1],[PX1,-PAVZ1],[PX1,-PZ0]].map(([x,y])=>new THREE.Vector2(x,y)));
+  ps.holes.push(new THREE.Path([[POOL.x0,-POOL.z0],[POOL.x1,-POOL.z0],[POOL.x1,-POOL.z1],[POOL.x0,-POOL.z1]].map(([x,y])=>new THREE.Vector2(x,y))));
+  const pg=new THREE.ExtrudeGeometry(ps,{depth:0.1,bevelEnabled:false});pg.rotateX(-Math.PI/2);pg.translate(0,-0.1,0);
+  const pt=paverTex.clone();pt.needsUpdate=true;pt.repeat.set(1/2.4,1/2.4);
+  const pavMat=M.paver.clone();pavMat.map=pt;
+  mesh(pg,[pavMat,std({color:'#cfc5b2',roughness:0.85})],null,null,null,false,true);
+})();
+/* shrubs and ornamental grasses around the terrace */
+(function(){const [c,g]=cv(256);g.fillStyle='#2f4a22';g.fillRect(0,0,256,256);
+  for(let i=0;i<2600;i++){g.fillStyle=`hsl(${rr(85,118)},${rr(30,52)}%,${rr(16,40)}%)`;g.beginPath();g.ellipse(R()*256,R()*256,rr(2,5),rr(1,3),R()*3,0,7);g.fill();}
+  const leaf=std({map:T(c,2,2),roughness:0.95});
+  const geo=new THREE.IcosahedronGeometry(1,3);const p=geo.attributes.position;
+  for(let i=0;i<p.count;i++){const k=1+0.1*Math.sin(p.getX(i)*7.1)*Math.cos(p.getY(i)*5.3+p.getZ(i)*3.7);p.setXYZ(i,p.getX(i)*k,p.getY(i)*k,p.getZ(i)*k);}geo.computeVertexNormals();
+  const ball=(x,z,s)=>{const o=mesh(geo,leaf,[x,GC.top+s*0.85,z]);o.scale.set(s,s*0.9,s);};
+  [[-6.6,-5.25,0.42],[-5.7,-5.35,0.36],[-1.5,-5.3,0.4],[-0.7,-5.25,0.34],[2.6,-5.3,0.42],[3.4,-5.35,0.35],[6.4,-5.25,0.44],
+   [8.25,-3.4,0.45],[8.3,-2.4,0.36],[8.25,1.6,0.42],[8.3,2.5,0.34],[8.2,6.3,0.46],
+   [-8.25,-3.2,0.44],[-8.3,-2.3,0.36],[-8.25,1.9,0.42],[-8.2,6.4,0.46],[-6.4,8.45,0.4],[6.6,8.45,0.4]].forEach(a=>ball(...a));
+  const grassM=std({color:'#6f7a3a',roughness:1,side:THREE.DoubleSide});
+  [[-3.4,8.5],[0.2,8.6],[3.8,8.5],[-8.6,4.2],[8.7,4.4],[-4.2,-5.6],[4.6,-5.6]].forEach(([x,z],j)=>{
+    for(let b=0;b<14;b++){const a=b/14*Math.PI*2+j,h=rr(0.45,0.75),bl=new THREE.Mesh(new THREE.ConeGeometry(0.03,h,3,1,true),grassM);
+      bl.position.set(x+Math.cos(a)*0.06,GC.top+h/2*Math.cos(0.35),z+Math.sin(a)*0.06);bl.rotation.set(Math.sin(a)*0.35,0,-Math.cos(a)*0.35);bl.castShadow=true;scene.add(bl);}});
+})();
+
+/* ---------- pool ---------- */
 (function(){const W=POOL.x1-POOL.x0,D=POOL.z1-POOL.z0,Hh=-POOL.y;
   const off=1-((Hh/0.8)%1);
   const a=poolWallTex.clone();a.needsUpdate=true;a.repeat.set(W/0.8,Hh/0.8);a.offset.y=off;
@@ -2531,11 +2593,13 @@ worldBox(POOL.x0,POOL.x1,PB,POOL.y,POOL.z0,PZ1,pm);
   mesh(new THREE.PlaneGeometry(W,Hh),std({map:a,roughness:0.25}),[(POOL.x0+POOL.x1)/2,POOL.y/2,POOL.z0+0.002],null,null,false);
   mesh(new THREE.PlaneGeometry(D,Hh),std({map:b,roughness:0.25}),[POOL.x1-0.002,POOL.y/2,(POOL.z0+POOL.z1)/2],[0,-Math.PI/2,0],null,false);
   mesh(new THREE.PlaneGeometry(D,Hh),std({map:b,roughness:0.25}),[POOL.x0+0.002,POOL.y/2,(POOL.z0+POOL.z1)/2],[0,Math.PI/2,0],null,false);
+  mesh(new THREE.PlaneGeometry(W,Hh),std({map:a,roughness:0.25}),[(POOL.x0+POOL.x1)/2,POOL.y/2,POOL.z1-0.002],[0,Math.PI,0],null,false);
   mesh(new THREE.PlaneGeometry(W,D),std({map:bt,roughness:0.25}),[(POOL.x0+POOL.x1)/2,POOL.y+0.002,(POOL.z0+POOL.z1)/2],[-Math.PI/2,0,0],null,false);
   mesh(box(W-0.002,Hh-0.08,D-0.002),M.water,[(POOL.x0+POOL.x1)/2+0.001,POOL.y/2-0.04,(POOL.z0+POOL.z1)/2+0.001],null,null,false,false);
   mesh(box(W+0.64,0.045,0.32),M.trav,[(POOL.x0+POOL.x1)/2,0.022,POOL.z0-0.16]);
   mesh(box(0.32,0.045,D),M.trav,[POOL.x0-0.16,0.022,(POOL.z0+POOL.z1)/2]);
   mesh(box(0.32,0.045,D),M.trav,[POOL.x1+0.16,0.022,(POOL.z0+POOL.z1)/2]);
+  mesh(box(W+0.64,0.045,0.32),M.trav,[(POOL.x0+POOL.x1)/2,0.022,POOL.z1+0.16]);
 })();
 
 /* ---------- loggia floor ---------- */
@@ -2894,7 +2958,7 @@ const hemi=new THREE.HemisphereLight('#dfe9f5','#8a7a60',0.3);scene.add(hemi);
 const sun=new THREE.DirectionalLight('#fff3e2',2.0);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
 Object.assign(sun.shadow.camera,{left:-13,right:13,top:13,bottom:-13,near:1,far:90});sun.shadow.bias=-0.0004;sun.shadow.normalBias=0.03;scene.add(sun);scene.add(sun.target);
 camera.far=2000;camera.updateProjectionMatrix();
-const sky=window.LanaiSky?LanaiSky.create({THREE,scene,renderer,camera,board:{x0:PX0,x1:PX1,z0:PZ0,z1:PZ1,top:0,bottom:PB},soilTopColor:'#6e4c31',soilBottomColor:'#3e2a1c'}):null;
+const sky=window.LanaiSky?LanaiSky.create({THREE,scene,renderer,camera,board:{x0:PX0,x1:PX1,z0:PZ0,z1:PZ1,top:0,bottom:PB},ground:{cx:GC.cx,cz:GC.cz,r:GC.r,top:GC.top,rim:RIM},soilTopColor:'#6e4c31',soilBottomColor:'#3e2a1c'}):null;
 /* fallback lighting if the sky module is unavailable */
 const warm=new THREE.Color('#ffa868'),noon=new THREE.Color('#fff4e4'),moonC=new THREE.Color('#9fb6e8');
 function fallbackLight(h){const a=(h-6.5)/13*Math.PI,el=Math.sin(a);const day=el>0;
@@ -3172,7 +3236,7 @@ const RQ=(function(){
       renderReflection();}};
 })();
 
-function homeView(){const k=innerWidth/innerHeight<0.9?1.7:1;camera.position.set(19*k,9*k,30*k);controls.target.set(0,-0.6,0.8);controls.update();}
+function homeView(){const k=innerWidth/innerHeight<0.9?1.7:1;camera.position.set(21*k,10.5*k,33*k);controls.target.set(0,-0.8,1.4);controls.update();}
 $('reset').addEventListener('click',homeView);
 function resize(){const w=host.clientWidth,h=host.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
 addEventListener('resize',resize);resize();homeView();

@@ -563,7 +563,13 @@
     const linCol = (hex) => new THREE.Color(hex).convertSRGBToLinear();
     const soilTopL = linCol(SOIL_TOP), soilBotL = linCol(SOIL_BOT);
     // strata, top to bottom (display sRGB -> linear, as vertex colours are linear in r128)
+    const G = opts.ground && opts.ground.rim ? opts.ground : null;   // round, torn-edge ground disc
     const STRATA = [
+      ...(G ? [
+        { y: G.top + 0.02, c: linCol('#4a4a26') },                    // turf and roots
+        { y: G.top - 0.14, c: soilTopL },                             // dark topsoil
+        { y: -0.65, c: soilTopL.clone().lerp(soilBotL, 0.5) },
+      ] : []),
       { y: B.bottom, c: soilBotL },
       { y: -1.45, c: soilBotL.clone().lerp(soilTopL, 0.45) },
       { y: -1.75, c: soilBotL.clone().multiplyScalar(0.85) },
@@ -646,14 +652,24 @@
     root.add(islandGroup);
 
     // --- island profile -----------------------------------------------------
-    const CX = (B.x0 + B.x1) / 2, CZ = (B.z0 + B.z1) / 2;
-    const HX = (B.x1 - B.x0) / 2, HZ = (B.z1 - B.z0) / 2;
-    const TOPY = B.bottom, DEPTH = 9.0;                      // tip near y = -10.1
+    const CX = G ? G.cx : (B.x0 + B.x1) / 2, CZ = G ? G.cz : (B.z0 + B.z1) / 2;
+    const HX = G ? G.r : (B.x1 - B.x0) / 2, HZ = G ? G.r : (B.z1 - B.z0) / 2;
+    const TOPY = G ? G.top : B.bottom, DEPTH = G ? 10.0 : 9.0;   // tip near y = -10.1
     const LIP = 0.03;                                        // first ~0.27 m drop straight down, flush with the board
     // perimeter samples placed per edge so the 4 corners are hit exactly
-    const NX = 36, NZ = 28, M = 2 * (NX + NZ);
+    const NX = 36, NZ = 28, M = G ? G.rim.length : 2 * (NX + NZ);
     const perim = [];                                        // {x,z} relative to centre, s = arc fraction
-    (function () {
+    if (G) (function () {
+      // follow the host's torn rim exactly (clockwise seen from above)
+      const pts = G.rim.map(([x, z]) => [x - CX, z - CZ]);
+      let acc = 0, P = 0;
+      for (let i = 0; i < pts.length; i++) { const [x, z] = pts[i], [nx, nz] = pts[(i + 1) % pts.length]; P += Math.hypot(nx - x, nz - z); }
+      for (let i = 0; i < pts.length; i++) {
+        const [x, z] = pts[i], L = Math.hypot(x, z);
+        perim.push({ x, z, dx: x / L, dz: z / L, L, Ls: G.r * 0.97, s: acc / P });
+        const [nx, nz] = pts[(i + 1) % pts.length]; acc += Math.hypot(nx - x, nz - z);
+      }
+    })(); else (function () {
       const pts = [];
       for (let i = 0; i < NX; i++) pts.push([-HX + (2 * HX * i) / NX, HZ]);          // front edge (+z), -x -> +x
       for (let i = 0; i < NZ; i++) pts.push([HX, HZ - (2 * HZ * i) / NZ]);           // east edge, +z -> -z
@@ -702,7 +718,7 @@
       const cols = M + 1, rows = K + 1;
       const pos = new Float32Array(cols * rows * 3), col = new Float32Array(cols * rows * 3), uv = new Float32Array(cols * rows * 2);
       const P = new THREE.Vector3(), c = new THREE.Color();
-      const uRep = Math.round((4 * (HX + HZ)) / 2.6);    // integer repeats: no texture seam
+      const uRep = Math.round((G ? 2 * Math.PI * G.r : 4 * (HX + HZ)) / 2.6);    // integer repeats: no texture seam
       for (let k = 0; k < rows; k++) {
         const t = ringT(k), u = Math.max(0, (t - LIP) / (1 - LIP));
         for (let j = 0; j < cols; j++) {
@@ -719,7 +735,7 @@
           const lg = u > 0.02 ? ledge(u, p.dx, p.dz).g : 0;
           const ao = 1 - 0.28 * smoothstep(0.75, 1.0, lg) - 0.18 * smoothstep(0.75, 1.0, u);
           c.multiplyScalar(mott * ao);
-          if (t <= LIP) c.copy(soilBotL);           // flush lip matches the board's soil cut exactly
+          if (t <= LIP && !G) c.copy(soilBotL);     // flush lip matches the board's soil cut exactly
           c.multiplyScalar(texComp);
           col[o] = c.r; col[o + 1] = c.g; col[o + 2] = c.b;
           const ou = (k * cols + j) * 2;
@@ -750,7 +766,7 @@
       for (let k = 0; k <= 1; k++) for (let j = 0; j < cols; j++) {
         const p = perim[j % M], a = k * cols + j;
         const ax = Math.abs(p.x) >= HX - 1e-6, az = Math.abs(p.z) >= HZ - 1e-6;
-        let nx = ax ? Math.sign(p.x) : 0, nz = az ? Math.sign(p.z) : 0;
+        let nx = G ? p.dx : ax ? Math.sign(p.x) : 0, nz = G ? p.dz : az ? Math.sign(p.z) : 0;
         const l = Math.hypot(nx, nz) || 1; n.setXYZ(a, nx / l, 0, nz / l);
       }
       const mat = track(new THREE.MeshStandardMaterial({

@@ -5,7 +5,7 @@ An interactive 3D "cake slice" diorama of an arched steel-and-glass loggia with 
 ## Features
 
 - Arched steel-and-glass French doors and casements, hip roofs, a two-story tower and a herringbone-tile wing
-- The board is cut away like a slice of cake, showing pavers, concrete, gravel, sand and soil, with the pool in section
+- A round slice of land torn out of the earth: lawn, shrubs and a paved terrace with a pool, with soil and rock layers exposed on the torn edge
 - A floating rock island with dangling roots and vines, plus small islets drifting below
 - A 24-hour sky with gradient sunrises and sunsets, a moon, thousands of twinkling stars and a Milky Way, all rotating around the island
 - A sun dial: drag it around the clock and the sky swings past and rubber-bands back into place
