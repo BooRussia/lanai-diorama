@@ -9,9 +9,9 @@ An interactive 3D "cake slice" diorama of an arched steel-and-glass loggia with 
 - A floating rock island with dangling roots and vines, plus small islets drifting below
 - A 24-hour sky with gradient sunrises and sunsets, a moon, thousands of twinkling stars and a Milky Way, all rotating around the island
 - A sun dial: drag it around the clock and the sky swings past and rubber-bands back into place
-- Click the dial's center to remove the roof with an animation
+- Click the dial's center to dissolve the roof into glowing embers (and click again to bring it back)
 - Reflective Fresnel glass, a mirrored pool surface, caustics on the pool floor, contact shadows and glowing lights at night
-- Furniture editing: click and drag any piece; **R** opens a rotation dial on the floor; **Q/E** turn it 15°; arrow keys nudge it; **Copy layout** copies every piece's position and angle
+- Works on phones: one finger to orbit, pinch to zoom, two fingers to pan, double-tap to reset the view
 
 ## Run it
 
