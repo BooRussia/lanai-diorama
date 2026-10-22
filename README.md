@@ -12,7 +12,8 @@ An interactive 3D "cake slice" diorama of an arched steel-and-glass loggia with 
 - A sun dial: drag it around the clock and the sky swings past and rubber-bands back into place
 - Click the dial's center to dissolve the roof into glowing embers (and click again to bring it back)
 - Reflective Fresnel glass, a mirrored pool surface, caustics on the pool floor, contact shadows and glowing lights at night
-- Works on phones: one finger to orbit, pinch to zoom, two fingers to pan, double-tap to reset the view
+- Walk mode: press W A S D (or the footprints button) to fly down onto the lawn and walk the courtyard and loggia at eye height. Mouse to look (click to capture the mouse, Esc to release it, Esc again to leave), Shift to run, arrow keys to walk and turn. Walls, glass, furniture, the pool and the island's edge stop you, and the French doors open as you walk up to them
+- Works on phones: one finger to orbit, pinch to zoom, two fingers to pan, double-tap to reset the view. In walk mode a joystick appears under your left thumb (walk and turn, push past the ring to jog), the right thumb looks around, and the other controls step aside until you tap the footprints to leave
 
 ## Run it
 

@@ -58,11 +58,25 @@ body{margin:0;overflow:hidden;background:var(--bg2);background-image:radial-grad
 #core .r{font:500 9px var(--body);text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
 #core[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
 #core[aria-pressed="true"] .r{color:var(--accent-ink);opacity:.75}
-#core:focus-visible,.reset:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.reset{position:fixed;right:calc(var(--edge) + var(--dial) + 10px);bottom:calc(env(safe-area-inset-bottom,0px) + 18px);width:48px;height:48px;border-radius:50%;
+#core:focus-visible,.reset:focus-visible,.walk:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.reset,.walk{position:fixed;right:calc(var(--edge) + var(--dial) + 10px);bottom:calc(env(safe-area-inset-bottom,0px) + 18px);width:48px;height:48px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;padding:0;background:var(--panel);border:1px solid var(--line);color:var(--ink);cursor:pointer}
-.reset:hover{border-color:var(--muted)}
-.reset svg{width:17px;height:17px}
+.reset:hover,.walk:hover{border-color:var(--muted)}
+.reset svg,.walk svg{width:17px;height:17px}
+/* walk mode: footprints button stacked above reset; crosshair while the mouse is captured; thumb joystick on phones */
+.walk{bottom:calc(env(safe-area-inset-bottom,0px) + 76px);transition:background .2s,color .2s}
+.walk[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.walking #stage canvas,.walking #stage canvas:active{cursor:crosshair}
+.cross{position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:rgba(255,255,255,.85);box-shadow:0 0 0 1px rgba(0,0,0,.3);pointer-events:none;opacity:0;transition:opacity .2s}
+.cross.on{opacity:1}
+.joy{position:fixed;left:0;top:0;width:96px;height:96px;margin:-48px 0 0 -48px;border-radius:50%;border:1.5px solid rgba(255,255,255,.6);background:rgba(255,255,255,.1);pointer-events:none;opacity:0;transition:opacity .15s}
+.joy.on{opacity:1}.joy.idle{opacity:.5}
+.joy i{position:absolute;left:50%;top:50%;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;background:rgba(255,255,255,.65)}
+.walking .hint{color:rgba(255,255,255,.92);text-shadow:0 1px 2px rgba(0,0,0,.55),0 0 8px rgba(0,0,0,.25)}
+/* phones while walking: only the leave button stays, up top and away from the thumbs */
+.walking.touch .dial,.walking.touch .reset,.walking.touch .design-tab{opacity:0;visibility:hidden;pointer-events:none}
+.walking.touch .walk{top:calc(env(safe-area-inset-top,0px) + 14px);bottom:auto;right:var(--edge)}
+.walking.touch .hint{top:calc(env(safe-area-inset-top,0px) + 76px)}
 .hint{position:fixed;right:max(18px,calc(env(safe-area-inset-right,0px) + 18px));top:calc(env(safe-area-inset-top,0px) + 20px);font-size:11px;color:var(--muted);text-align:right;line-height:1.5;pointer-events:none}
 .hint{transition:color .6s}
 .is-night .hint{color:rgba(243,239,230,.72)}
@@ -160,8 +174,11 @@ body{margin:0;overflow:hidden;background:var(--bg2);background-image:radial-grad
     <p class="note">Turn the dial to watch the light move across the house through the day, and tap its center to dissolve the roof and look inside.</p>
   </article>
 </aside>
-<div class="hint" id="hint">Drag to orbit<br>Scroll or pinch to zoom<br>Right-drag to pan</div>
+<div class="hint" id="hint">Drag to orbit<br>Scroll or pinch to zoom<br>Right-drag to pan<br>W A S D to walk around</div>
 <button class="reset" id="reset" aria-label="Reset view" title="Reset view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg></button>
+<button class="walk" id="walkBtn" aria-pressed="false" aria-label="Walk around" title="Walk around (W A S D)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z"/><path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z"/><path d="M16 17h4"/><path d="M4 13h4"/></svg></button>
+<div class="cross" id="cross" aria-hidden="true"></div>
+<div class="joy" id="joy" aria-hidden="true"><i></i></div>
 <div class="dial" id="dial">
   <svg viewBox="-74 -74 148 148">
     <path class="track" id="track"/>
@@ -2674,7 +2691,7 @@ const RX0=-4.2,RX1=4.2,RZ0=-3.5,RZ1=2.5,WZ1=-2.8,WZF=WZ1+0.6;
 mesh(box(RX1-RX0,Y0,RZ1-RZ0),[M.trim,M.trim,M.tile,M.trim,M.trim,M.trim],[0,Y0/2,(RZ0+RZ1)/2]);
 
 /* ---------- walls: three openings to the pool, two narrow doors on the side ---------- */
-const frameMats=[],modeSets=[];
+const frameMats=[],modeSets=[],doorSets=[];
 const WALLS=[
   {pos:[0,RZ1-TH/2],rot:0,u0:RX0,u1:RX1,inS:-1,openings:[
     {units:[{c:-2.5,w:2.8,leaves:4}],b:0,spr:2.75,rise:0.6},
@@ -2731,6 +2748,7 @@ WALLS.forEach(sp=>{
       if(n===1)mesh(box(0.025,0.28,0.13),M.iron,[hw-0.19,1.1,0],null,gb);
       hbar(o.b+0.85,0.05,sb);
       modeSets.push({gl,sc,gb,sb});
+      if(!un.casement)doorSets.push({og,parts:[gl,sc,gb,sb]});   /* French doors: walk mode opens them as you come near */
     });
   });
 });
@@ -3256,11 +3274,11 @@ document.addEventListener('dblclick',e=>e.preventDefault(),{passive:false});
 (function(){let last=0,down=null;const c=renderer.domElement;
   c.addEventListener('pointerdown',e=>{if(e.pointerType!=='mouse')down={x:e.clientX,y:e.clientY,t:performance.now()};});
   c.addEventListener('pointerup',e=>{if(!down||e.pointerType==='mouse')return;const moved=Math.hypot(e.clientX-down.x,e.clientY-down.y)>10,quick=performance.now()-down.t<260;down=null;
-    if(moved||!quick)return;const now=performance.now();if(now-last<330){homeView();last=0;}else last=now;});})();
+    if(moved||!quick||WALK.on)return;const now=performance.now();if(now-last<330){homeView();last=0;}else last=now;});})();
 /* iOS only plays sound after a touch: unlock the audio context on the first one */
 addEventListener('touchend',function unlock(){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();actx.resume();
   const b=actx.createBuffer(1,1,22050),src=actx.createBufferSource();src.buffer=b;src.connect(actx.destination);src.start(0);}catch(_){}removeEventListener('touchend',unlock);});
-if(MOBILE){const h=$('hint');h.innerHTML='Drag to orbit · pinch to zoom<br>Two fingers to pan · double-tap to reset';setTimeout(()=>h.classList.add('fade'),7000);}
+if(MOBILE){const h=$('hint');h.innerHTML='Drag to orbit · pinch to zoom<br>Two fingers to pan · double-tap to reset<br>Tap the footprints to walk around';setTimeout(()=>h.classList.add('fade'),7000);}
 renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();document.body.insertAdjacentHTML('beforeend','<div id="err">The 3D view ran out of memory. Reload the page to restore it.</div>');});
 
 /* ---------- gold title in the sky: clouds drift in front, the sun slides across the metal ---------- */
@@ -3314,7 +3332,7 @@ const TITLE=(function(){
     const yc=halfH*(asp<1?0.62:0.7);
     tmp.set(0,yc,-dist).applyMatrix4(camera.matrixWorld);mesh.position.copy(tmp);mesh.quaternion.copy(camera.quaternion);mesh.scale.set(w,h,1);
   }
-  return {update(L,t){place();const u=mat.uniforms;u.uTime.value=t;
+  return {mesh,update(L,t){place();const u=mat.uniforms;u.uTime.value=t;
     if(L){sunV.copy(L.sunDir).transformDirection(camera.matrixWorldInverse);u.uSunV.value.copy(sunV);u.uSunI.value=Math.min(1.3,L.keyIntensity/1.6);u.uNight.value=Math.min(1,Math.max(0,L.night));
       u.uSweep.value=0.5+sunV.x*0.55+Math.sin(t*0.12)*0.06;}}};
 })();
@@ -3337,6 +3355,100 @@ const TITLE=(function(){
     if(dy>110||v>0.6)setOpen(false);else sh.style.removeProperty('--drag');y0=null;});
 })();
 
+/* ---------- walk mode: W A S D (or the footprints button) puts you on the lawn at eye height ---------- */
+const WALK=(function(){
+  const c=renderer.domElement,btn=$('walkBtn'),hint=$('hint'),cross=$('cross'),joy=$('joy'),joyK=joy.firstElementChild;
+  const EYE=1.62,R=0.3,STEP=0.3,SPEED=1.5,RUN=3.4,PROBES=[0.3,0.75,1.3],SPAWN={x:2.0,z:9.6,yaw:0.18,pitch:-0.06};
+  const DIRS=[0,1,2,3,4,5,6,7].map(i=>[Math.cos(i*Math.PI/4),Math.sin(i*Math.PI/4)]);
+  const pos=new THREE.Vector3(),vel=new THREE.Vector2(),joyV=new THREE.Vector2(),keys=new Set(),ray=new THREE.Raycaster(),eul=new THREE.Euler(0,0,0,'YXZ'),_o=new THREE.Vector3(),_d=new THREE.Vector3();
+  let mode='off',tw=null,saved=null,hintHTML='',yaw=0,pitch=0,feet=0,bobT=0,colliders=null,drag=null,mv=null,lk=null,joyRun=0,taught=false;const near=[];
+  const fov=asp=>asp<1?80:62;
+  document.body.classList.toggle('touch',MOBILE);
+  /* everything solid between the ground and head height; the French doors are left out so you can walk through them */
+  function build(){const skip=new Set();colliders=[];scene.updateMatrixWorld();
+    doorSets.forEach(ds=>{ds.parts.forEach(p=>p.traverse(m=>skip.add(m)));ds.c=ds.og.getWorldPosition(new THREE.Vector3());ds.open=false;ds.vis=[];});
+    scene.traverse(m=>{if(!m.isMesh||m.isInstancedMesh||m.userData.helper||skip.has(m))return;for(let p=m;p;p=p.parent)if(!p.visible)return;
+      if(!m.geometry.boundingBox)m.geometry.computeBoundingBox();const b=m.geometry.boundingBox.clone().applyMatrix4(m.matrixWorld);
+      if(b.max.y<-0.3||b.min.y>2.2||b.min.y<-1.6)return;colliders.push({m,b});});}
+  function gather(){near.length=0;const x=pos.x,z=pos.z,P=1.2;
+    for(const k of colliders){const b=k.b;if(b.max.x<x-P||b.min.x>x+P||b.max.z<z-P||b.min.z>z+P||b.max.y<feet-0.6||b.min.y>feet+1.8)continue;near.push(k.m);}}
+  function cast(x,y,z,dx,dy,dz,far){ray.set(_o.set(x,y,z),_d.set(dx,dy,dz));ray.far=far;const h=ray.intersectObjects(near,false);return h.length?h[0]:null;}
+  const ground=()=>{const h=cast(pos.x,feet+STEP,pos.z,0,-1,0,STEP+0.6);return h?h.point.y:null;};
+  /* stay on the island and out of the pool */
+  function bounds(){const dx=pos.x-GC.cx,dz=pos.z-GC.cz,r=Math.hypot(dx,dz),rm=GC.r-0.8;if(r>rm){pos.x=GC.cx+dx/r*rm;pos.z=GC.cz+dz/r*rm;}
+    const m=0.15,x0=POOL.x0-m,x1=POOL.x1+m,z0=POOL.z0-m,z1=POOL.z1+m;
+    if(pos.x>x0&&pos.x<x1&&pos.z>z0&&pos.z<z1){const e=[pos.x-x0,x1-pos.x,pos.z-z0,z1-pos.z],i=e.indexOf(Math.min(...e));
+      if(i===0)pos.x=x0;else if(i===1)pos.x=x1;else if(i===2)pos.z=z0;else pos.z=z1;}}
+  /* one small step: move, push back out of anything inside the body radius, refuse ledges */
+  function step(mx,mz){const px=pos.x,pz=pos.z;pos.x+=mx;pos.z+=mz;gather();
+    for(const h of PROBES)for(const [dx,dz] of DIRS){const hit=cast(pos.x,feet+h,pos.z,dx,0,dz,R);if(hit){pos.x-=dx*(R-hit.distance);pos.z-=dz*(R-hit.distance);}}
+    bounds();const g=ground();if(g===null||g<feet-0.45){pos.x=px;pos.z=pz;}}
+  /* French doors open (glass and bars hide) while you are within a couple of metres */
+  function doors(){let ch=false;doorSets.forEach(ds=>{const o=mode==='walk'&&Math.hypot(pos.x-ds.c.x,pos.z-ds.c.z)<2.1;if(o===ds.open)return;ds.open=o;ch=true;
+    ds.parts.forEach((p,i)=>{if(o){ds.vis[i]=p.visible;p.visible=false;}else p.visible=ds.vis[i];});});if(ch)renderer.shadowMap.needsUpdate=true;}
+  function look(dx,dy,k){yaw-=dx*k;pitch=Math.max(-1.35,Math.min(1.35,pitch-dy*k));}
+  function tween(p,q,f,d,done){tw={t:0,d:reduce?0.01:d,p0:camera.position.clone(),p1:p,q0:camera.quaternion.clone(),q1:q,f0:camera.fov,f1:f,done};}
+  function setUI(w){document.body.classList.toggle('walking',w);btn.setAttribute('aria-pressed',w);btn.title=w?'Leave walk mode (Esc)':'Walk around (W A S D)';btn.setAttribute('aria-label',w?'Leave walk mode':'Walk around');
+    if(w){hintHTML=hint.innerHTML;hint.innerHTML=MOBILE?'Drag on the left to walk and turn<br>Drag on the right to look around<br>Tap the footprints to leave':'W A S D to walk · Shift to run<br>Click, then move the mouse to look<br>Esc frees the mouse, again to leave';
+      hint.classList.remove('fade');if(MOBILE)setTimeout(()=>{if(mode!=='off')hint.classList.add('fade');},7000);
+      /* until the first walk, a faint joystick shows where the left thumb goes */
+      if(MOBILE&&!taught){joy.style.left=Math.min(120,innerWidth*0.28)+'px';joy.style.top=(innerHeight-Math.min(170,innerHeight*0.3))+'px';joy.classList.add('idle');}}
+    else{hint.innerHTML=hintHTML;hint.classList.toggle('fade',MOBILE);joy.classList.remove('idle');}}
+  function enter(){if(mode==='in'||mode==='walk')return;if(mode==='off'){saved={p:camera.position.clone(),t:controls.target.clone()};if(!colliders)build();}
+    mode='in';controls.enabled=false;TITLE.mesh.visible=false;camera.near=0.1;camera.updateProjectionMatrix();
+    pos.set(SPAWN.x,0,SPAWN.z);yaw=SPAWN.yaw;pitch=SPAWN.pitch;vel.set(0,0);feet=0;gather();const g=ground();feet=g===null?0:g;
+    tween(new THREE.Vector3(pos.x,feet+EYE,pos.z),new THREE.Quaternion().setFromEuler(eul.set(pitch,yaw,0)),fov(camera.aspect),1.6,()=>{mode='walk';});
+    setUI(true);}
+  function exit(home){if(mode==='off'||mode==='out')return;mode='out';keys.clear();vel.set(0,0);endTouch();
+    if(document.pointerLockElement===c)document.exitPointerLock();doors();
+    const p=new THREE.Vector3(),t=new THREE.Vector3();if(home)homePose(p,t);else{p.copy(saved.p);t.copy(saved.t);}
+    tween(p,new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().lookAt(p,t,camera.up)),camera.aspect<1?38:30,1.3,()=>{
+      mode='off';camera.near=0.5;camera.updateProjectionMatrix();controls.target.copy(t);controls.enabled=true;controls.update();TITLE.mesh.visible=true;});
+    setUI(false);}
+  function update(dt){
+    if(tw){tw.t+=dt;const k=Math.min(1,tw.t/tw.d),e=k<0.5?4*k*k*k:1-Math.pow(-2*k+2,3)/2;
+      camera.position.lerpVectors(tw.p0,tw.p1,e);camera.quaternion.copy(tw.q0).slerp(tw.q1,e);camera.fov=tw.f0+(tw.f1-tw.f0)*e;camera.updateProjectionMatrix();
+      if(k>=1){const f=tw.done;tw=null;f();}return;}
+    if(mode!=='walk')return;
+    const has=k=>keys.has(k),run=has('ShiftLeft')||has('ShiftRight');
+    /* the thumb joystick walks forward and back and turns, so one thumb is enough */
+    yaw+=(((has('ArrowLeft')?1:0)-(has('ArrowRight')?1:0))*1.9-joyV.x*1.5)*dt;
+    let f=(has('KeyW')||has('ArrowUp')?1:0)-(has('KeyS')||has('ArrowDown')?1:0)+joyV.y,s=(has('KeyD')?1:0)-(has('KeyA')?1:0);
+    const l=Math.hypot(f,s);if(l>1){f/=l;s/=l;}
+    const sy=Math.sin(yaw),cy=Math.cos(yaw),sp=run?RUN:SPEED+(RUN-SPEED)*joyRun,a=Math.min(1,dt*9);
+    vel.x+=((-sy*f+cy*s)*sp-vel.x)*a;vel.y+=((-cy*f-sy*s)*sp-vel.y)*a;
+    const mx=vel.x*dt,mz=vel.y*dt,n=Math.ceil(Math.hypot(mx,mz)/0.06);
+    for(let i=0;i<n;i++)step(mx/n,mz/n);
+    gather();const g=ground();if(g!==null)feet+=(g-feet)*Math.min(1,dt*12);
+    const v=Math.hypot(vel.x,vel.y);bobT+=dt*v/0.72*Math.PI;const bob=reduce?0:-Math.abs(Math.sin(bobT))*0.03*Math.min(1,v/SPEED);
+    camera.position.set(pos.x,feet+EYE+bob,pos.z);camera.quaternion.setFromEuler(eul.set(pitch,yaw,0));
+    controls.target.set(pos.x-sy*3,feet+EYE,pos.z-cy*3);doors();}
+  /* keys: W A S D to walk, arrows walk and turn; pressing W A S D from the orbit view walks you in */
+  const MOVE=new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight']);
+  addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey||e.altKey)return;const t=e.target;if(t&&t.closest&&t.closest('input,textarea,select,[role="slider"],.sheet'))return;
+    if(mode==='off'){if(/^Key[WASD]$/.test(e.code)&&!e.repeat){enter();keys.add(e.code);}return;}
+    if(e.code==='Escape'){exit();return;}
+    if(MOVE.has(e.code)){keys.add(e.code);e.preventDefault();}});
+  addEventListener('keyup',e=>keys.delete(e.code));addEventListener('blur',()=>keys.clear());
+  /* mouse: click to capture it for mouse-look (or just drag). touch: a joystick appears wherever the left thumb lands
+     (a small dead zone, push past the ring to jog); dragging on the right half looks around */
+  c.addEventListener('pointerdown',e=>{if(mode!=='walk')return;
+    if(e.pointerType==='mouse'){if(document.pointerLockElement!==c&&c.requestPointerLock){try{const r=c.requestPointerLock();if(r&&r.catch)r.catch(()=>{});}catch(_){}}drag={x:e.clientX,y:e.clientY};return;}
+    if(!mv&&e.clientX<innerWidth/2){mv={id:e.pointerId,x:e.clientX,y:e.clientY};taught=true;joy.classList.remove('idle');joy.style.left=mv.x+'px';joy.style.top=mv.y+'px';joy.classList.add('on');}
+    else if(!lk)lk={id:e.pointerId,x:e.clientX,y:e.clientY};});
+  c.addEventListener('pointermove',e=>{if(mode!=='walk')return;
+    if(e.pointerType==='mouse'){if(drag&&document.pointerLockElement!==c){look(e.clientX-drag.x,e.clientY-drag.y,0.0045);drag.x=e.clientX;drag.y=e.clientY;}return;}
+    if(mv&&e.pointerId===mv.id){const dx=(e.clientX-mv.x)/48,dy=(e.clientY-mv.y)/48,r=Math.hypot(dx,dy),k=r>0?Math.min(1,Math.max(0,(r-0.15)/0.85))/r:0;
+      joyV.set(dx*k,-dy*k);joyRun=Math.min(1,Math.max(0,(r-1.3)/0.7));const q=Math.min(1,r)/(r||1);joyK.style.transform=`translate(${dx*q*30}px,${dy*q*30}px)`;}
+    else if(lk&&e.pointerId===lk.id){look(e.clientX-lk.x,e.clientY-lk.y,0.0065);lk.x=e.clientX;lk.y=e.clientY;}});
+  document.addEventListener('mousemove',e=>{if(mode==='walk'&&document.pointerLockElement===c)look(e.movementX,e.movementY,0.0022);});
+  function endTouch(e){if(!e||mv&&e.pointerId===mv.id){mv=null;joyV.set(0,0);joyRun=0;joy.classList.remove('on');joyK.style.transform='';}if(!e||lk&&e.pointerId===lk.id)lk=null;if(!e||e.pointerType==='mouse')drag=null;}
+  addEventListener('pointerup',endTouch);addEventListener('pointercancel',endTouch);
+  document.addEventListener('pointerlockchange',()=>cross.classList.toggle('on',document.pointerLockElement===c));
+  btn.addEventListener('click',()=>{if(mode==='in'||mode==='walk')exit();else enter();btn.blur();});
+  return {get on(){return mode!=='off';},fov,enter,exit,update};
+})();
+
 /* ---------- realism modules (each optional; loaded as separate scripts before this one) ---------- */
 const CTX={THREE,scene,renderer,camera,controls,M,frameMats,spots,lampLights,sun,hemi,roof,POOL,RQ,sky,MOBILE,
   dims:{Y0,WH,TH,CEIL,SOFFIT,RX0,RX1,RZ0,RZ1,WZ1,KX,KW,KZ,PX0,PX1,PZ0,PZ1,GC}};
@@ -3344,10 +3456,11 @@ let LIGHT=null,POST=null;
 ['LanaiMaterialsExt','LanaiMaterialsInt'].forEach(k=>{try{if(window[k])window[k].apply(CTX);}catch(err){console.error(k,err);}});
 try{if(window.LanaiLighting)LIGHT=LanaiLighting.create(CTX);}catch(err){console.error('lighting module',err);LIGHT=null;}
 try{if(window.LanaiPost)POST=LanaiPost.create(CTX);}catch(err){console.error('post module',err);POST=null;}
-window.__lanai={camera,controls,setHour:h=>setTarget(h,true),scene,renderer,M,CTX,get L(){return lastL;}};
-function homeView(){const asp=innerWidth/innerHeight,need=12.2/(Math.tan(camera.fov*Math.PI/360)*Math.min(asp,1.6)),k=Math.max(1,need/40.5);const ty=asp<1?1.8:2.5;camera.position.set(21*k*1.12,10.5*k*1.12+ty,33*k*1.12);controls.target.set(0,ty,1.4);controls.update();}
-$('reset').addEventListener('click',homeView);
-function resize(){const w=host.clientWidth,h=host.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=w/h<1?38:30;camera.updateProjectionMatrix();if(POST&&POST.setSize)POST.setSize(w,h);}
+window.__lanai={camera,controls,setHour:h=>setTarget(h,true),scene,renderer,M,CTX,walk:WALK,get L(){return lastL;}};
+function homePose(p,t){const asp=innerWidth/innerHeight,need=12.2/(Math.tan((asp<1?38:30)*Math.PI/360)*Math.min(asp,1.6)),k=Math.max(1,need/40.5);const ty=asp<1?1.8:2.5;p.set(21*k*1.12,10.5*k*1.12+ty,33*k*1.12);t.set(0,ty,1.4);}
+function homeView(){homePose(camera.position,controls.target);controls.update();}
+$('reset').addEventListener('click',()=>{if(WALK.on)WALK.exit(true);else homeView();});
+function resize(){const w=host.clientWidth,h=host.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=WALK.on?WALK.fov(w/h):w/h<1?38:30;camera.updateProjectionMatrix();if(POST&&POST.setSize)POST.setSize(w,h);}
 addEventListener('resize',resize);resize();homeView();
 
 /* ---------- smoothness ---------- */
@@ -3364,7 +3477,7 @@ function adaptRes(dt,now){if(now<4||dt>=0.1)return;fAcc+=dt;fN++;if(fN<45||now-l
   if(Math.abs(nd-dprNow)>0.01){dprNow=nd;renderer.setPixelRatio(dprNow);resize();lastAdj=now;}}
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){clock.getDelta();fAcc=0;fN=0;}});
 const clock=new THREE.Clock();
-function frame(){const dt=Math.min(clock.getDelta(),0.1);clampTarget();controls.update();adaptRes(dt,clock.elapsedTime);shadowTick();
+function frame(){const dt=Math.min(clock.getDelta(),0.1);if(WALK.on)WALK.update(dt);else{clampTarget();controls.update();}adaptRes(dt,clock.elapsedTime);shadowTick();
   stepRoof();stepTime(dt);updateSky(dt,clock.elapsedTime);RQ.update(lastL,clock.elapsedTime);TITLE.update(lastL,clock.elapsedTime);
   if(fanOn&&!reduce)blades.rotation.y+=dt*3.2;
   if(LIGHT&&LIGHT.update)LIGHT.update(lastL,clock.elapsedTime,dt);
