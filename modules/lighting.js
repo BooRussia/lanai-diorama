@@ -49,7 +49,8 @@
       uLgHemi: { value: 1 },             // extra scale of hemisphere fill
       uLgBounce: { value: new THREE.Color(0, 0, 0) }, // sunlit-courtyard bounce into the loggia
       uLgGlow: { value: new THREE.Color(0, 0, 0) },   // warm lamp bounce inside the loggia
-      uLgEaveB: { value: new THREE.Color(0, 0, 0) }   // can-light bounce on the facade under the eaves
+      uLgEaveB: { value: new THREE.Color(0, 0, 0) },  // can-light bounce on the facade under the eaves
+      uLgRoofF: { value: new THREE.Color(0, 0, 0) }   // cool twilight sky fill on up-facing roof planes
     };
 
     var VERT_DECL = 'varying vec3 vLgW;\n';
@@ -57,7 +58,7 @@
     var FRAG_DECL = [
       'varying vec3 vLgW;',
       'uniform float uLgRoof,uLgIblD,uLgIblS,uLgHemi;',
-      'uniform vec3 uLgBounce,uLgGlow,uLgEaveB;',
+      'uniform vec3 uLgBounce,uLgGlow,uLgEaveB,uLgRoofF;',
       'float lgBox(vec3 p,vec3 lo,vec3 hi,float s){vec3 a=smoothstep(lo-s,lo+s,p)*(1.0-smoothstep(hi-s,hi+s,p));return a.x*a.y*a.z;}'
     ].join('\n') + '\n';
     var FRAG_BODY = [
@@ -89,6 +90,8 @@
       ' irradiance+=uLgGlow*_in*_gy;',
       /* soffit cans bouncing off the pavers back up onto the eave and the wall top */
       ' irradiance+=uLgEaveB*_ev*(0.4+0.6*_up+0.4*_eh);',
+      /* twilight sky on the roof slopes so dark shingles keep their shape */
+      ' irradiance+=uLgRoofF*smoothstep(0.25,0.7,_wn.y)*smoothstep(' + f(SOFFIT + 0.02) + ',' + f(SOFFIT + 0.25) + ',_p.y);',
       '}'
     ].join('\n') + '\n';
 
@@ -179,14 +182,14 @@
       l.decay = 2; l.castShadow = false;
       if (inside && p.y > CEIL - 0.5) { retire(l); removed++; return; }           // ceiling fill points
       if (inside && p.y < Y0 + 1.2 && l.distance && l.distance <= 3) { retire(l); removed++; return; } // table lamp
-      if (inside && Math.abs(p.y - (CEIL - 0.95)) < 0.3) { l.distance = 7; l.color.set('#ffc488'); cls.chand.push(l); return; }
-      if (inside) { l.distance = 7; l.color.set('#ffc68c'); cls.floor.push(l); return; }
+      if (inside && Math.abs(p.y - (CEIL - 0.95)) < 0.3) { l.distance = 7; l.color.set('#ffb468'); cls.chand.push(l); return; }
+      if (inside) { l.distance = 7; l.color.set('#ffb066'); cls.floor.push(l); return; }
       if (MOBILE) { retire(l); removed++; return; }
       l.distance = 4.5; l.color.set('#ffcf94'); cls.ext.push(l);
     });
     // interior downlights (stand-ins for the six ceiling cans), aimed straight down
     var downs = [[1.75, -0.75], [-1.55, -1.1]].map(function (xz) {
-      var s = new THREE.SpotLight('#ffd6a6', 0, 9, 1.05, 0.7, 2);
+      var s = new THREE.SpotLight('#ffc082', 0, 9, 1.05, 0.7, 2);
       s.position.set(xz[0], CEIL - 0.04, xz[1]); s.target.position.set(xz[0], 0, xz[1]);
       holder.add(s); holder.add(s.target); return s;
     });
@@ -207,7 +210,7 @@
 
     /* ------------------------------------------------------- per-frame state */
     var kc = new THREE.Color(), warmC = new THREE.Color(1.0, 0.6, 0.3), moonTint = new THREE.Color('#8fb0ff');
-    var glowC = new THREE.Color('#ffa85e'), creamC = new THREE.Color('#ffe2b8'), tmpC = new THREE.Color();
+    var roofSkyC = new THREE.Color('#9fb2d8'), glowC = new THREE.Color('#ff9442'), creamC = new THREE.Color('#ffe2b8'), tmpC = new THREE.Color();
     var warned = 0;
     // glass reflections are balanced against the lit interior at dusk (multiplier on the material's own value)
     var glassMats = [M.glass, M.glassClear].filter(function (m) { return m && m.envMapIntensity !== undefined; });
@@ -223,11 +226,12 @@
         var isMoon = kCol && (kCol.b > kCol.r + 0.05);
         var night = clamp(L.night || 0, 0, 1);
         var e;
-        if (!isMoon && kI > 0.002) e = 0.48 * Math.pow(kI / 2.2, 1 / 0.6) - 0.03;
+        if (!isMoon && L.sunDir && kI > 0.002) e = L.sunDir.y;            // the key is the sun: its true elevation
         else e = night >= 0.999 ? -0.2 : lerp(0.1, -0.08, night);
         var day = sstep(-0.04, 0.12, e);             // 0 at night .. 1 in daylight
         var dusk = 1 - sstep(0.12, 0.3, e);          // practical lights on (architectural dusk)
         var gold = isMoon ? 0 : (1 - sstep(0.1, 0.45, e)) * sstep(-0.03, 0.03, e);
+        var noonK2 = sstep(0.3, 0.8, e);
         var roofF = 1;
         if (DISref) roofF = 1 - clamp(DISref.value, 0, 1);
         if (!roof.visible) roofF = 0;
@@ -240,7 +244,7 @@
         } else {
           kc.lerp(warmC, 0.45 * gold);
           var noonK = sstep(0.3, 0.8, e);
-          sun.intensity = kI * PI * (1.0 + 0.3 * gold) * lerp(1.0, 0.9, noonK);
+          sun.intensity = kI * PI * (1.0 + 0.3 * gold) * lerp(1.0, 0.7, noonK);
         }
         sun.color.copy(kc);
 
@@ -252,7 +256,7 @@
         U.uLgIblS.value = lerp(1.05, 0.9, day);
         U.uLgHemi.value = 1;
         U.uLgRoof.value = roofF;
-        renderer.toneMappingExposure = (L.exposure || 1) * lerp(lerp(1.02, 0.78, day), 0.93, gold);
+        renderer.toneMappingExposure = (L.exposure || 1) * lerp(lerp(1.02, 0.78, day), 0.93, gold) * lerp(1, 0.82, sstep(0.3, 0.8, e));
 
         /* --- loggia bounce: sunlit pavers into the room --- */
         var sunUp = isMoon ? 0 : Math.max(0, L.sunDir ? L.sunDir.y : 0);
@@ -274,10 +278,12 @@
         cls.ext.forEach(function (l) { l.intensity = 2.2 * on; });
         downs.forEach(function (s) { s.intensity = 24 * lampK * roofF; });
         poolL.intensity = 9 * sstep(0.1, 0.0, e) * (isMoon || e < 0.1 ? 1 : 0);
-        U.uLgGlow.value.copy(glowC).multiplyScalar(PI * 0.3 * lampK * (0.45 + 0.55 * roofF));
+        U.uLgGlow.value.copy(glowC).multiplyScalar(PI * 0.36 * lampK * (0.45 + 0.55 * roofF));
         // daytime inter-reflection between the cream walls, floor and ceiling
         U.uLgGlow.value.add(tmpC.copy(creamC).multiplyScalar(kI * PI * sunUp * 0.11));
         U.uLgEaveB.value.copy(glowC).multiplyScalar(PI * 0.2 * on);
+        // cool twilight fill on the roof: strongest from sunset into blue hour, faint at night
+        U.uLgRoofF.value.copy(roofSkyC).multiplyScalar(PI * (0.7 * on * (1 - noonK2) * (0.45 + 0.55 * day) + 0.12 * (1 - day)));
 
         /* --- fixture glow (emissive only) --- */
         if (M.can) M.can.emissiveIntensity = 0.25 + 3.2 * on;

@@ -178,14 +178,14 @@ function genShingle(S, rnd) {
   for (let r = 0; r < nr; r++) {
     let x0 = Math.floor(rnd() * w);
     for (const sw of cyclicWidths(w, Math.round(0.86 * pxm), Math.round(1.0 * pxm), rnd)) {
-      strips.push({ v: 54 + rnd() * 8, warm: (rnd() - 0.5) * 3 });
+      strips.push({ v: 74 + rnd() * 10, warm: (rnd() - 0.5) * 3 });
       for (let x = x0; x < x0 + sw; x++) stripOf[r * w + wrapI(x, w)] = strips.length - 1;
       x0 += sw;
     }
     x0 = Math.floor(rnd() * w);
     for (const tw of cyclicWidths(w, Math.round(0.09 * pxm), Math.round(0.3 * pxm), rnd)) {
       const u = rnd();
-      pads.push({ x0, w: tw, v: u < 0.12 ? 50 + rnd() * 5 : u > 0.94 ? 68 + rnd() * 6 : 57 + rnd() * 9, warm: (rnd() - 0.5) * 5,
+      pads.push({ x0, w: tw, v: u < 0.12 ? 68 + rnd() * 6 : u > 0.94 ? 90 + rnd() * 8 : 77 + rnd() * 11, warm: (rnd() - 0.5) * 5,
         gap: rnd() < 0.7 ? Math.round((0.015 + rnd() * 0.045) * pxm) : 0, top: 0.36 + rnd() * 0.24, tilt: rnd() - 0.5 });
       for (let x = x0; x < x0 + tw; x++) padOf[r * w + wrapI(x, w)] = pads.length - 1;
       x0 += tw;
@@ -207,11 +207,11 @@ function genShingle(S, rnd) {
       } else { v = st.v * (inPadZone ? 0.82 : 1); wr = st.warm; }
       v *= (0.96 + 0.08 * mot[i]) * (0.45 + 0.55 * ss(0, 0.13, ly));          // butt-edge shadow from the course above
       const bk = blk[(y >> 1) * bw + (x >> 1)], wn = rnd() - 0.5, s = rnd();
-      const gr = bk * 10 + wn * 9 + (s < 0.015 ? -14 : s > 0.984 ? 26 : 0);
+      const gr = bk * 12 + wn * 11 + (s < 0.02 ? -20 : s > 0.975 ? 38 : 0);
       const f = 1 + 0.05 * streak[i];
       col[j] = v * f + gr + wr; col[j + 1] = v * f + gr + 0.5; col[j + 2] = v * f + gr + 1.5 - wr; col[j + 3] = 255;
       H[i] = (1.5 * ly + (onPad ? 1.3 + t.tilt * 0.4 : 0) + bk * 0.45 + wn * 0.22) * k * 1.3;
-      Rg[i] = (s > 0.984 ? 0.55 : 0.87) + wn * 0.08;
+      Rg[i] = (s > 0.975 ? 0.5 : 0.8) + wn * 0.08;
     }
   }
   return pack(w, h, col, H, 1, Rg);
@@ -467,14 +467,34 @@ function apply(CTX) {
     const m = M.stucco;
     setMaps(m, st, { ns: 0.9 });
     m.color.set('#ffffff'); m.roughness = 1; m.metalness = 0; m.envMapIntensity = 0.55;
+    /* boxes (tower, wing, kitchen wall) map 0..1 per face: give each face a clone at true 2 m texture scale
+       so the plaster is not stretched into large tan blotches */
+    const faceCache = new Map(), near2 = (a, b) => Math.abs(a - b) < 1e-3;
+    const faceMat = (fw, fh) => {
+      const key = fw.toFixed(2) + 'x' + fh.toFixed(2); if (faceCache.has(key)) return faceCache.get(key);
+      const c = m.clone(), rep = [fw / 2, fh / 2];
+      c.map = like(st.map, null, rep); c.normalMap = like(st.normalMap, null, rep); c.roughnessMap = like(st.roughnessMap, null, rep);
+      c.needsUpdate = true; faceCache.set(key, c); return c;
+    };
+    allMeshes.forEach(o => {
+      const g = o.geometry; if (!g || g.type !== 'BoxGeometry' || !g.parameters) return;
+      const p = g.parameters, dims = [[p.depth, p.height], [p.depth, p.height], [p.width, p.depth], [p.width, p.depth], [p.width, p.height], [p.width, p.height]];
+      if (Array.isArray(o.material)) { if (o.material.indexOf(m) < 0) return; o.material = o.material.map((mm, i) => mm === m ? faceMat(dims[i][0], dims[i][1]) : mm); }
+      else if (o.material === m && !(near2(p.width, 1) && near2(p.height, 1))) {
+        /* single-material box: use the largest face size (all its big faces share it) */
+        const a = [p.width * p.height, p.depth * p.height, p.width * p.depth], i = a.indexOf(Math.max(...a));
+        o.material = faceMat(...(i === 0 ? [p.width, p.height] : i === 1 ? [p.depth, p.height] : [p.width, p.depth]));
+      }
+    });
+    M.stuccoFaces = Array.from(faceCache.values());
     /* trim and crown: same plaster, smoother, a touch brighter, no mottling */
     const t = M.trim, ref = orig.trim;
-    t.map = null; t.color.set('#f6eedd');
+    t.map = null; t.color.set('#ece0c8');
     t.normalMap = like(st.normalMap, ref); t.normalScale.set(0.3, 0.3); t.bumpMap = null;
     t.roughnessMap = null; t.roughness = 0.74; t.metalness = 0; t.envMapIntensity = 0.6; t.needsUpdate = true;
     if (M.trimDS) { M.trimDS.copy(t); M.trimDS.side = THREE.DoubleSide; M.trimDS.needsUpdate = true; }
     /* fascia, gutters, downspouts, soffits: smooth semi-gloss exterior paint */
-    const paint = new THREE.MeshStandardMaterial({ color: '#f5eee0', roughness: 0.5, metalness: 0, envMapIntensity: 0.7 });
+    const paint = new THREE.MeshStandardMaterial({ color: '#e2d3b6', roughness: 0.7, metalness: 0, envMapIntensity: 0.7 });
     M.trimPaint = paint;
     const near = (a, b) => Math.abs(a - b) < 2e-3;
     allMeshes.forEach(o => {
@@ -495,7 +515,7 @@ function apply(CTX) {
         if (!mm || mm === t || mm === paint) return;
         if (ref && mm.map === ref) {
           mm.map = null; mm.normalMap = null; mm.roughnessMap = null; mm.bumpMap = null;
-          mm.color.set('#f5eee0'); mm.roughness = 0.5; mm.metalness = 0; mm.envMapIntensity = 0.7; mm.needsUpdate = true;
+          mm.color.set('#e2d3b6'); mm.roughness = 0.7; mm.metalness = 0; mm.envMapIntensity = 0.7; mm.needsUpdate = true;
         }
       });
     });
@@ -543,11 +563,11 @@ function apply(CTX) {
     const sh = texSet(genShingle(big, mkRng(202)));
     const targets = new Set([M.shingle]);
     allMeshes.forEach(o => mats(o).forEach(mm => { if (usesImage(mm, orig.shingle)) targets.add(mm); }));
-    targets.forEach(mm => { setMaps(mm, sh, { ns: 1.25 }); mm.color.set('#ffffff'); mm.metalness = 0; mm.envMapIntensity = 0.55; });
+    targets.forEach(mm => { setMaps(mm, sh, { ns: 1.25 }); mm.color.set('#ffffff'); mm.metalness = 0; mm.envMapIntensity = 0.8; });
     /* ridge caps: match the shingle tone */
     allMeshes.forEach(o => mats(o).forEach(mm => {
       if (mm && mm.isMeshStandardMaterial && !mm.map && mm.color && mm.color.getHexString() === '2a2d31' && o.geometry.type === 'BoxGeometry') {
-        mm.color.set('#2e2e2e'); mm.roughness = 0.9; mm.needsUpdate = true;
+        mm.color.set('#454545'); mm.roughness = 0.85; mm.needsUpdate = true;
       }
     }));
   });
