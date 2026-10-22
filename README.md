@@ -4,7 +4,7 @@ An interactive 3D "cake slice" diorama of an arched steel-and-glass loggia with 
 
 ## Features
 
-- Gold title set into the sky, with clouds drifting in front and sunlight sliding across the metal; a **Learn more** drop-down explains how the steel-and-glass openings replace the screened lanai
+- Gold title set into the sky, with clouds drifting in front and sunlight sliding across the metal; a **The design** sheet (side panel on desktop, swipeable bottom sheet on phones) explains how the steel-and-glass openings replace the screened lanai
 - Arched steel-and-glass French doors and casements, hip roofs, a two-story tower and a herringbone-tile wing
 - A round slice of land torn out of the earth: lawn, shrubs and a paved terrace with a pool, with soil and rock layers exposed on the torn edge
 - A floating rock island with dangling roots and vines, plus small islets drifting below

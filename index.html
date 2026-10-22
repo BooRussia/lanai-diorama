@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Instrument+Sans:wght@400;500;600&display=swap">
 <style>
-/* Layout: full-bleed 3D stage; gold title set into the sky above the house with a Learn more drop-down under it; sun dial bottom-right, compass top-right. */
+/* Layout: full-bleed 3D stage; gold title set into the sky above the house. Bottom bar: 'The design' tab bottom-left opens a sheet (side panel on desktop, bottom sheet on phones); reset + sun dial bottom-right. */
 /* dial size is shared by the dial and the reset button beside it */
 :root{ --dial:148px; --edge:max(18px,calc(env(safe-area-inset-right,0px) + 18px)); }
 :root{
@@ -41,7 +41,7 @@ body{margin:0;overflow:hidden;background:var(--bg2);background-image:radial-grad
 #stage canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
 #stage canvas:active{cursor:grabbing}
 .dial{position:fixed;right:max(18px,calc(env(safe-area-inset-right,0px) + 18px));bottom:calc(env(safe-area-inset-bottom,0px) + 18px);width:var(--dial);height:var(--dial);border-radius:50%;
-  background:var(--panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);box-shadow:0 10px 30px rgba(0,0,0,.14);touch-action:none;user-select:none;-webkit-user-select:none;cursor:pointer}
+  background:var(--panel);border:1px solid var(--line);box-shadow:0 10px 30px rgba(0,0,0,.14);touch-action:none;user-select:none;-webkit-user-select:none;cursor:pointer}
 .dial svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 .dial .track{fill:none;stroke:var(--line);stroke-width:6;stroke-linecap:round}
 .dial .fill{fill:none;stroke:var(--sun);stroke-width:6;stroke-linecap:round}
@@ -59,55 +59,74 @@ body{margin:0;overflow:hidden;background:var(--bg2);background-image:radial-grad
 #core[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
 #core[aria-pressed="true"] .r{color:var(--accent-ink);opacity:.75}
 #core:focus-visible,.reset:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.reset{position:fixed;right:calc(var(--edge) + var(--dial) + 10px);bottom:calc(env(safe-area-inset-bottom,0px) + 18px);width:44px;height:44px;border-radius:50%;
-  display:flex;align-items:center;justify-content:center;padding:0;background:var(--panel);border:1px solid var(--line);color:var(--ink);cursor:pointer;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.reset{position:fixed;right:calc(var(--edge) + var(--dial) + 10px);bottom:calc(env(safe-area-inset-bottom,0px) + 18px);width:48px;height:48px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;padding:0;background:var(--panel);border:1px solid var(--line);color:var(--ink);cursor:pointer}
 .reset:hover{border-color:var(--muted)}
 .reset svg{width:17px;height:17px}
-.compass{position:fixed;right:max(18px,calc(env(safe-area-inset-right,0px) + 18px));top:calc(env(safe-area-inset-top,0px) + 18px);width:46px;height:46px;pointer-events:none}
-.compass svg{width:100%;height:100%}
-.hint{position:fixed;right:max(18px,calc(env(safe-area-inset-right,0px) + 18px));top:calc(env(safe-area-inset-top,0px) + 72px);font-size:11px;color:var(--muted);text-align:right;line-height:1.5;pointer-events:none}
+.hint{position:fixed;right:max(18px,calc(env(safe-area-inset-right,0px) + 18px));top:calc(env(safe-area-inset-top,0px) + 20px);font-size:11px;color:var(--muted);text-align:right;line-height:1.5;pointer-events:none}
 .hint{transition:color .6s}
 .is-night .hint{color:rgba(243,239,230,.72)}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.learn{position:fixed;left:50%;transform:translateX(-50%);top:30vh;width:min(580px,calc(100vw - 32px));display:flex;flex-direction:column;align-items:center;gap:10px;pointer-events:none;z-index:2}
-.learn-btn{pointer-events:auto;display:inline-flex;align-items:center;gap:7px;padding:8px 16px 8px 18px;border-radius:999px;border:1px solid rgba(184,137,58,.55);
-  background:rgba(20,16,10,.28);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:var(--gold-pale);cursor:pointer;
-  font:600 15px var(--display);letter-spacing:.18em;text-transform:uppercase;text-shadow:0 1px 6px rgba(0,0,0,.35);transition:background .25s,border-color .25s}
-.learn-btn:hover{background:rgba(20,16,10,.42);border-color:var(--gold)}
-.learn-btn:focus-visible{outline:2px solid var(--gold-pale);outline-offset:3px}
-.learn-btn svg{width:15px;height:15px;transition:transform .35s ease}
-.learn-btn[aria-expanded="true"] svg{transform:rotate(180deg)}
-.story{pointer-events:auto;box-sizing:border-box;width:100%;max-height:min(58vh,560px);overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
-  padding:22px 26px 24px;border-radius:18px;background:rgba(250,246,238,.9);color:#2a2219;border:1px solid rgba(184,137,58,.35);
-  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 20px 50px rgba(20,14,6,.28);user-select:text;-webkit-user-select:text;
-  animation:storyIn .45s cubic-bezier(.2,.8,.2,1)}
-@keyframes storyIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:none}}
-.story .eyebrow{margin:0 0 6px;font:600 11px var(--body);letter-spacing:.16em;text-transform:uppercase;color:var(--gold-deep)}
-.story h2{margin:0 0 12px;font:500 27px/1.12 var(--display);letter-spacing:.01em;text-wrap:balance;color:#21190f}
-.story h3{margin:18px 0 6px;font:600 18px var(--display);color:var(--gold-deep);letter-spacing:.02em}
-.story p,.story li{font:400 14.5px/1.6 var(--body);max-width:62ch}
-.story p{margin:0 0 10px}
-.story ul{margin:0 0 6px;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.design-tab{position:fixed;left:max(16px,calc(env(safe-area-inset-left,0px) + 16px));bottom:calc(env(safe-area-inset-bottom,0px) + 18px);z-index:3;
+  display:inline-flex;align-items:center;gap:10px;min-height:48px;padding:0 18px 0 16px;border-radius:999px;cursor:pointer;
+  background:var(--panel);border:1px solid var(--line);box-shadow:0 10px 30px rgba(0,0,0,.14);color:var(--ink);
+  font:600 12.5px var(--body);letter-spacing:.14em;text-transform:uppercase;transition:transform .2s ease,background .2s}
+.design-tab .dot{width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 3px rgba(184,137,58,.22)}
+.design-tab svg{width:14px;height:14px;transition:transform .35s ease;opacity:.7}
+.design-tab:active{transform:scale(.97)}
+.design-tab:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.design-tab[aria-expanded="true"]{opacity:0;pointer-events:none}
+.scrim{position:fixed;inset:0;z-index:4;background:rgba(12,10,8,.28);opacity:0;pointer-events:none;transition:opacity .35s ease}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;z-index:5;box-sizing:border-box;display:flex;flex-direction:column;background:#faf6ee;color:#2a2219;
+  border:1px solid rgba(184,137,58,.3);box-shadow:0 24px 60px rgba(20,14,6,.32);user-select:text;-webkit-user-select:text;
+  left:max(16px,calc(env(safe-area-inset-left,0px) + 16px));top:calc(env(safe-area-inset-top,0px) + 16px);bottom:calc(env(safe-area-inset-bottom,0px) + 16px);
+  width:min(440px,calc(100vw - 32px));border-radius:20px;transform:translateX(calc(-100% - 40px));transition:transform .45s cubic-bezier(.2,.8,.2,1);will-change:transform}
+.sheet.open{transform:none}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 14px 6px 24px;touch-action:none}
+.sheet-head .eyebrow{margin:0;font:600 11px var(--body);letter-spacing:.16em;text-transform:uppercase;color:var(--gold-deep)}
+.grab{display:none}
+.sheet-close{width:44px;height:44px;flex:none;border-radius:50%;border:1px solid rgba(184,137,58,.3);background:transparent;color:#4a3d2c;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.sheet-close svg{width:16px;height:16px}
+.sheet-close:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.story{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:4px 24px 28px}
+.story h2{margin:6px 0 12px;font:500 28px/1.12 var(--display);letter-spacing:.01em;text-wrap:balance;color:#21190f}
+.story h3{margin:20px 0 6px;font:600 19px var(--display);color:var(--gold-deep);letter-spacing:.02em}
+.story p,.story li{font:400 15px/1.62 var(--body);max-width:62ch}
+.story p{margin:0 0 11px}
+.story ul{margin:0 0 6px;padding-left:18px;display:flex;flex-direction:column;gap:7px}
 .story li::marker{color:var(--gold)}
 .story strong{font-weight:600;color:#21190f}
-.story .note{margin-top:14px;padding-top:12px;border-top:1px solid rgba(184,137,58,.3);font-size:13px;color:#6a5a45}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .story{background:rgba(22,19,15,.9);color:#e9e0d0}
+.story .note{margin-top:16px;padding-top:12px;border-top:1px solid rgba(184,137,58,.3);font-size:13.5px;color:#6a5a45}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .sheet{background:#17140f;color:#e9e0d0}
   :root:not([data-theme="light"]) .story h2,:root:not([data-theme="light"]) .story strong{color:#f6ecd8}
-  :root:not([data-theme="light"]) .story h3,:root:not([data-theme="light"]) .story .eyebrow{color:var(--gold-pale)}
-  :root:not([data-theme="light"]) .story .note{color:#b9aa92}}
-:root[data-theme="dark"] .story{background:rgba(22,19,15,.9);color:#e9e0d0}
+  :root:not([data-theme="light"]) .story h3,:root:not([data-theme="light"]) .sheet-head .eyebrow{color:var(--gold-pale)}
+  :root:not([data-theme="light"]) .story .note{color:#b9aa92}
+  :root:not([data-theme="light"]) .sheet-close{color:#e9e0d0}}
+:root[data-theme="dark"] .sheet{background:#17140f;color:#e9e0d0}
 :root[data-theme="dark"] .story h2,:root[data-theme="dark"] .story strong{color:#f6ecd8}
-:root[data-theme="dark"] .story h3,:root[data-theme="dark"] .story .eyebrow{color:var(--gold-pale)}
+:root[data-theme="dark"] .story h3,:root[data-theme="dark"] .sheet-head .eyebrow{color:var(--gold-pale)}
 :root[data-theme="dark"] .story .note{color:#b9aa92}
-@media (max-width:620px){.learn-btn{font-size:13.5px;padding:7px 14px 7px 16px}.story{padding:18px 18px 20px;max-height:52vh}.story h2{font-size:23px}.story p,.story li{font-size:14px}}
-@media (prefers-reduced-motion: reduce){.story{animation:none}.learn-btn svg{transition:none}}
+:root[data-theme="dark"] .sheet-close{color:#e9e0d0}
+/* phones: a bottom sheet with a grab handle that you can swipe down */
+@media (max-width:620px){
+  .sheet{left:0;right:0;top:auto;bottom:0;width:auto;max-height:84svh;max-height:84vh;border-radius:22px 22px 0 0;border-bottom:0;
+    padding-bottom:env(safe-area-inset-bottom,0px);transform:translateY(105%);transition:transform .42s cubic-bezier(.2,.8,.2,1)}
+  .sheet.open{transform:translateY(var(--drag,0px))}
+  .sheet.dragging{transition:none}
+  .grab{display:block;position:absolute;left:50%;top:8px;width:40px;height:5px;margin-left:-20px;border-radius:3px;background:rgba(120,100,70,.35)}
+  .sheet-head{padding:22px 12px 4px 20px}
+  .story{padding:2px 20px 24px}
+  .story h2{font-size:24px}.story p,.story li{font-size:15px}
+  .design-tab{min-height:46px;padding:0 16px 0 14px;font-size:11.5px}
+}
+@media (prefers-reduced-motion: reduce){.sheet,.scrim,.design-tab svg{transition:none}}
 #err{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:14px}
 @media (max-width:620px){
   :root{ --dial:126px }
   #core{width:68px;height:68px;margin:-34px 0 0 -34px}
   #core .t{font-size:12.5px} #core .r{font-size:8px}
-  .hint{top:auto;right:auto;left:max(16px,calc(env(safe-area-inset-left,0px) + 16px));bottom:calc(env(safe-area-inset-bottom,0px) + 22px);text-align:left;max-width:calc(100vw - var(--dial) - 100px)}
-  .compass{width:40px;height:40px}
+  .hint{right:auto;left:max(16px,calc(env(safe-area-inset-left,0px) + 16px));top:calc(env(safe-area-inset-top,0px) + 14px);text-align:left;max-width:calc(100vw - 32px)}
 }
 .hint.fade{opacity:0;transition:opacity 1.2s,color .6s}
 </style>
@@ -117,13 +136,15 @@ body{margin:0;overflow:hidden;background:var(--bg2);background-image:radial-grad
 
 <div id="stage"></div>
 <h1 class="sr-only">Pria Ghuman</h1>
-<div class="learn" id="learnMore">
-  <button class="learn-btn" id="learnBtn" aria-expanded="false" aria-controls="story">Learn more
-    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6l4.5 4.5L12.5 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-  </button>
-  <article class="story" id="story" hidden>
-    <p class="eyebrow">Rear courtyard · Lanai enclosure</p>
-    <h2>From screened lanai to a steel-and-glass loggia</h2>
+<button class="design-tab" id="learnBtn" aria-expanded="false" aria-controls="sheet"><span class="dot" aria-hidden="true"></span>The design
+  <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 10l4.5-4.5L12.5 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+<div class="scrim" id="scrim"></div>
+<aside class="sheet" id="sheet" role="dialog" aria-modal="false" aria-labelledby="storyTitle" aria-hidden="true">
+  <span class="grab" aria-hidden="true"></span>
+  <div class="sheet-head" id="sheetHead"><p class="eyebrow">Rear courtyard · Lanai enclosure</p>
+    <button class="sheet-close" id="sheetClose" aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button></div>
+  <article class="story" id="story">
+    <h2 id="storyTitle">From screened lanai to a steel-and-glass loggia</h2>
     <p>Today the rear lanai is closed in with screen panels set into the stucco arches. They keep the bugs out, but from the courtyard they read as mesh: flat, grey and a little temporary. The house loses its face toward the pool.</p>
     <p>This design replaces every screened opening with arched steel-framed glass. The arches stay exactly where they are. What changes is what fills them: slim charcoal frames, divided lights and round-top transoms that follow the curve of the stucco.</p>
     <h3>What goes into the openings</h3>
@@ -138,8 +159,7 @@ body{margin:0;overflow:hidden;background:var(--bg2);background-image:radial-grad
     <p>During the day the panes pick up the sky and the pool. At night the room glows like a lantern over the water. Inside, the space is fully enclosed, so the outdoor kitchen, the dining table and the lounge can be enjoyed in any weather, with the doors thrown open whenever the evening is right.</p>
     <p class="note">Turn the dial to watch the light move across the house through the day, and tap its center to dissolve the roof and look inside.</p>
   </article>
-</div>
-<div class="compass" aria-hidden="true"><svg viewBox="-23 -23 46 46"><circle r="21" fill="var(--panel)" stroke="var(--line)"/><g id="needle"><path d="M0-15 L5 2 L0 -1 L-5 2Z" fill="var(--ink)"/><path d="M0 15 L5 2 L0 -1 L-5 2Z" fill="var(--muted)" opacity=".45"/><text y="-17" text-anchor="middle" font-size="6.5" fill="var(--ink)" font-family="Instrument Sans,sans-serif" font-weight="600">POOL</text></g></svg></div>
+</aside>
 <div class="hint" id="hint">Drag to orbit<br>Scroll or pinch to zoom<br>Right-drag to pan</div>
 <button class="reset" id="reset" aria-label="Reset view" title="Reset view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg></button>
 <div class="dial" id="dial">
@@ -3226,6 +3246,7 @@ const RQ=(function(){
 
 /* ---------- touch and phone niceties ---------- */
 controls.touches={ONE:THREE.TOUCH.ROTATE,TWO:THREE.TOUCH.DOLLY_PAN};controls.screenSpacePanning=true;
+if(MOBILE){controls.rotateSpeed=0.8;controls.zoomSpeed=0.9;controls.panSpeed=0.8;controls.dampingFactor=0.09;}
 const _home=new THREE.Vector3(0,1.8,1.4);
 function clampTarget(){const t=controls.target,dx=t.x-_home.x,dz=t.z-_home.z,d=Math.hypot(dx,dz),M2=11;
   if(d>M2){t.x=_home.x+dx/d*M2;t.z=_home.z+dz/d*M2;}t.y=Math.min(9,Math.max(-11,t.y));}
@@ -3286,22 +3307,35 @@ const TITLE=(function(){
         col=mix(col,col*vec3(0.62,0.5,0.36)+vec3(0.05,0.03,0.0),uNight*0.75);
         gl_FragColor=vec4(col,smoothstep(0.5,0.62,a));}`});
   const mesh=new THREE.Mesh(new THREE.PlaneGeometry(1,1),mat);mesh.renderOrder=-1;mesh.frustumCulled=false;mesh.raycast=()=>{};scene.add(mesh);
-  const lm=$('learnMore'),tmp=new THREE.Vector3(),sunV=new THREE.Vector3();let geo={bottom:0};
+  const tmp=new THREE.Vector3(),sunV=new THREE.Vector3();
   function place(){camera.updateMatrixWorld();const dist=camera.position.distanceTo(controls.target)+34;
     const halfH=Math.tan(camera.fov*Math.PI/360)*dist,halfW=halfH*camera.aspect,asp=camera.aspect;
     const w=Math.min(halfW*2*(asp<1?0.92:0.62),halfH*2*1.7),h=w*TH/TW;
     const yc=halfH*(asp<1?0.62:0.7);
     tmp.set(0,yc,-dist).applyMatrix4(camera.matrixWorld);mesh.position.copy(tmp);mesh.quaternion.copy(camera.quaternion);mesh.scale.set(w,h,1);
-    /* keep the Learn more button just under the gold rule */
-    const H=innerHeight,bottom=H/2-((yc-h*0.5+h*0.06)/halfH)*(H/2);
-    if(Math.abs(bottom-geo.bottom)>0.5){geo.bottom=bottom;lm.style.top=Math.round(bottom+4)+'px';}}
+  }
   return {update(L,t){place();const u=mat.uniforms;u.uTime.value=t;
     if(L){sunV.copy(L.sunDir).transformDirection(camera.matrixWorldInverse);u.uSunV.value.copy(sunV);u.uSunI.value=Math.min(1.3,L.keyIntensity/1.6);u.uNight.value=Math.min(1,Math.max(0,L.night));
       u.uSweep.value=0.5+sunV.x*0.55+Math.sin(t*0.12)*0.06;}}};
 })();
 
-$('learnBtn').addEventListener('click',()=>{const b=$('learnBtn'),st=$('story'),open=b.getAttribute('aria-expanded')!=='true';b.setAttribute('aria-expanded',open);st.hidden=!open;if(open)st.scrollTop=0;});
-['pointerdown','wheel','touchstart'].forEach(ev=>$('story').addEventListener(ev,e=>e.stopPropagation(),{passive:true}));
+/* ---------- 'The design' sheet: side panel on desktop, swipeable bottom sheet on phones ---------- */
+(function(){const tab=$('learnBtn'),sh=$('sheet'),scr=$('scrim'),st=$('story');let isOpen=false;
+  function setOpen(o){isOpen=o;sh.classList.toggle('open',o);scr.classList.toggle('on',o);tab.setAttribute('aria-expanded',o);sh.setAttribute('aria-hidden',!o);
+    sh.style.removeProperty('--drag');if(o){st.scrollTop=0;setTimeout(()=>$('sheetClose').focus({preventScroll:true}),60);}else tab.focus({preventScroll:true});}
+  tab.addEventListener('click',()=>setOpen(true));$('sheetClose').addEventListener('click',()=>setOpen(false));scr.addEventListener('click',()=>setOpen(false));
+  addEventListener('keydown',e=>{if(e.key==='Escape'&&isOpen)setOpen(false);});
+  /* the sheet never passes touches through to the 3D scene */
+  ['pointerdown','wheel','touchstart','touchmove'].forEach(ev=>sh.addEventListener(ev,e=>e.stopPropagation(),{passive:true}));
+  /* swipe down to close (from the handle area, or from the text when it is scrolled to the top) */
+  let y0=null,dy=0,t0=0,fromText=false;
+  sh.addEventListener('touchstart',e=>{if(!isOpen||e.touches.length>1)return;fromText=st.contains(e.target);if(fromText&&st.scrollTop>0){y0=null;return;}
+    y0=e.touches[0].clientY;dy=0;t0=performance.now();},{passive:true});
+  sh.addEventListener('touchmove',e=>{if(y0===null)return;dy=e.touches[0].clientY-y0;if(dy<=0){if(fromText){y0=null;sh.classList.remove('dragging');sh.style.removeProperty('--drag');}return;}
+    if(e.cancelable)e.preventDefault();sh.classList.add('dragging');sh.style.setProperty('--drag',dy+'px');},{passive:false});
+  sh.addEventListener('touchend',()=>{if(y0===null)return;sh.classList.remove('dragging');const v=dy/Math.max(1,performance.now()-t0);
+    if(dy>110||v>0.6)setOpen(false);else sh.style.removeProperty('--drag');y0=null;});
+})();
 
 /* ---------- realism modules (each optional; loaded as separate scripts before this one) ---------- */
 const CTX={THREE,scene,renderer,camera,controls,M,frameMats,spots,lampLights,sun,hemi,roof,POOL,RQ,sky,MOBILE,
@@ -3316,12 +3350,23 @@ $('reset').addEventListener('click',homeView);
 function resize(){const w=host.clientWidth,h=host.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=w/h<1?38:30;camera.updateProjectionMatrix();if(POST&&POST.setSize)POST.setSize(w,h);}
 addEventListener('resize',resize);resize();homeView();
 
-const needle=$('needle'),clock=new THREE.Clock(),pA=new THREE.Vector3(),pB=new THREE.Vector3(),fwd=new THREE.Vector3(0,0,1);
-function frame(){const dt=Math.min(clock.getDelta(),0.1);clampTarget();controls.update();
+/* ---------- smoothness ---------- */
+/* shadows re-render only when something that casts them has moved (time of day, roof, fan) */
+renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;
+let shH=-99,shN=0;
+function shadowTick(){shN++;if(roofAnim||Math.abs(hShown-shH)>0.003||shN<8||(fanOn&&!reduce&&shN%24===0)){renderer.shadowMap.needsUpdate=true;shH=hShown;}}
+/* resolution follows the device: drops a step when frames run long, climbs back when there is headroom */
+const DPR_MAX=Math.min(window.devicePixelRatio||1,2),DPR_MIN=MOBILE?0.75:1;
+let dprNow=renderer.getPixelRatio(),fAcc=0,fN=0,lastAdj=0;
+function adaptRes(dt,now){if(now<4||dt>=0.1)return;fAcc+=dt;fN++;if(fN<45||now-lastAdj<1.5)return;
+  const avg=fAcc/fN;fAcc=0;fN=0;let nd=dprNow;
+  if(avg>1/42)nd=Math.max(DPR_MIN,dprNow-0.2);else if(avg<1/57&&dprNow<DPR_MAX)nd=Math.min(DPR_MAX,dprNow+0.1);
+  if(Math.abs(nd-dprNow)>0.01){dprNow=nd;renderer.setPixelRatio(dprNow);resize();lastAdj=now;}}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){clock.getDelta();fAcc=0;fN=0;}});
+const clock=new THREE.Clock();
+function frame(){const dt=Math.min(clock.getDelta(),0.1);clampTarget();controls.update();adaptRes(dt,clock.elapsedTime);shadowTick();
   stepRoof();stepTime(dt);updateSky(dt,clock.elapsedTime);RQ.update(lastL,clock.elapsedTime);TITLE.update(lastL,clock.elapsedTime);
   if(fanOn&&!reduce)blades.rotation.y+=dt*3.2;
-  pA.copy(controls.target).project(camera);pB.copy(controls.target).add(fwd).project(camera);
-  const ang=Math.atan2(-(pB.y-pA.y)*innerHeight,(pB.x-pA.x)*innerWidth);needle.setAttribute('transform',`rotate(${ang*180/Math.PI+90})`);
   if(LIGHT&&LIGHT.update)LIGHT.update(lastL,clock.elapsedTime,dt);
   if(POST)POST.render(lastL,dt);else renderer.render(scene,camera);requestAnimationFrame(frame);}
 frame();
