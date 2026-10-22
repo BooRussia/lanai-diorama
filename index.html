@@ -154,6 +154,10 @@ body{margin:0;overflow:hidden;background:var(--bg2);background-image:radial-grad
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="modules/materials_ext.js"></script>
+<script src="modules/materials_int.js"></script>
+<script src="modules/lighting.js"></script>
+<script src="modules/post.js"></script>
 <script>
 /* LanaiTextures - procedural PBR texture upgrade for the lanai diorama.
  *
@@ -3299,9 +3303,17 @@ const TITLE=(function(){
 $('learnBtn').addEventListener('click',()=>{const b=$('learnBtn'),st=$('story'),open=b.getAttribute('aria-expanded')!=='true';b.setAttribute('aria-expanded',open);st.hidden=!open;if(open)st.scrollTop=0;});
 ['pointerdown','wheel','touchstart'].forEach(ev=>$('story').addEventListener(ev,e=>e.stopPropagation(),{passive:true}));
 
+/* ---------- realism modules (each optional; loaded as separate scripts before this one) ---------- */
+const CTX={THREE,scene,renderer,camera,controls,M,frameMats,spots,lampLights,sun,hemi,roof,POOL,RQ,sky,MOBILE,
+  dims:{Y0,WH,TH,CEIL,SOFFIT,RX0,RX1,RZ0,RZ1,WZ1,KX,KW,KZ,PX0,PX1,PZ0,PZ1,GC}};
+let LIGHT=null,POST=null;
+['LanaiMaterialsExt','LanaiMaterialsInt'].forEach(k=>{try{if(window[k])window[k].apply(CTX);}catch(err){console.error(k,err);}});
+try{if(window.LanaiLighting)LIGHT=LanaiLighting.create(CTX);}catch(err){console.error('lighting module',err);LIGHT=null;}
+try{if(window.LanaiPost)POST=LanaiPost.create(CTX);}catch(err){console.error('post module',err);POST=null;}
+window.__lanai={camera,controls,setHour:h=>setTarget(h,true),scene,renderer,M,CTX,get L(){return lastL;}};
 function homeView(){const asp=innerWidth/innerHeight,need=12.2/(Math.tan(camera.fov*Math.PI/360)*Math.min(asp,1.6)),k=Math.max(1,need/40.5);const ty=asp<1?1.8:2.5;camera.position.set(21*k*1.12,10.5*k*1.12+ty,33*k*1.12);controls.target.set(0,ty,1.4);controls.update();}
 $('reset').addEventListener('click',homeView);
-function resize(){const w=host.clientWidth,h=host.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=w/h<1?38:30;camera.updateProjectionMatrix();}
+function resize(){const w=host.clientWidth,h=host.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=w/h<1?38:30;camera.updateProjectionMatrix();if(POST&&POST.setSize)POST.setSize(w,h);}
 addEventListener('resize',resize);resize();homeView();
 
 const needle=$('needle'),clock=new THREE.Clock(),pA=new THREE.Vector3(),pB=new THREE.Vector3(),fwd=new THREE.Vector3(0,0,1);
@@ -3310,7 +3322,8 @@ function frame(){const dt=Math.min(clock.getDelta(),0.1);clampTarget();controls.
   if(fanOn&&!reduce)blades.rotation.y+=dt*3.2;
   pA.copy(controls.target).project(camera);pB.copy(controls.target).add(fwd).project(camera);
   const ang=Math.atan2(-(pB.y-pA.y)*innerHeight,(pB.x-pA.x)*innerWidth);needle.setAttribute('transform',`rotate(${ang*180/Math.PI+90})`);
-  renderer.render(scene,camera);requestAnimationFrame(frame);}
+  if(LIGHT&&LIGHT.update)LIGHT.update(lastL,clock.elapsedTime,dt);
+  if(POST)POST.render(lastL,dt);else renderer.render(scene,camera);requestAnimationFrame(frame);}
 frame();
 })();
 </script>

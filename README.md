@@ -22,6 +22,10 @@ Open `index.html` in a modern browser. It loads three.js from cdnjs and OrbitCon
 
 | File | What it is |
 | --- | --- |
-| `index.html` | The complete page, with all code inlined |
+| `index.html` | The page (loads the realism modules from `modules/`) |
 | `src/sky.js` | Sky dome, sun and moon, stars, clouds and the floating island (also inlined in `index.html`) |
+| `modules/materials_ext.js` | Exterior materials: stucco, steel frames, glass, shingles, pavers, pool, herringbone, garden |
+| `modules/materials_int.js` | Interior materials: floor tile, fabrics, rattan, teak, rugs, brushed stainless, granite |
+| `modules/lighting.js` | Soffit can lights, interior glow, sun/sky balance, shadows, pool light |
+| `modules/post.js` | Post-processing: MSAA, ambient occlusion, bloom, filmic grade |
 | `src/textures.js` | Procedural textures: stucco, tile, pavers, shingles, soil section, pool mosaic and more (also inlined in `index.html`) |
