@@ -291,11 +291,15 @@
       sceneRT = opts.msaa ? new THREE.WebGLMultisampleRenderTarget(W, H, o) : new THREE.WebGLRenderTarget(W, H, o);
       if (opts.msaa) sceneRT.samples = 4;
       sceneRT.texture.generateMipmaps = false;
-      if (opts.ao) {
+      /* Always give the scene target a high-precision depth buffer. Without a depth texture, r128 falls back to a
+         16-bit depth renderbuffer, which z-fights badly across this scene's depth range (seen on phones, where AO is off). */
+      if (opts.ao || isGL2 || has('WEBGL_depth_texture')) {
         var dt = new THREE.DepthTexture(W, H);
-        dt.type = isGL2 ? THREE.FloatType : THREE.UnsignedShortType;   // 32F depth on WebGL2: no stair-stepping on grazing walls
+        dt.type = isGL2 ? THREE.FloatType : THREE.UnsignedIntType;
         dt.format = THREE.DepthFormat; dt.minFilter = dt.magFilter = THREE.NearestFilter;
         sceneRT.depthTexture = dt;
+      }
+      if (opts.ao) {
         var aw = Math.max(1, W >> 1), ah = Math.max(1, H >> 1);
         var ao = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, depthBuffer: false, stencilBuffer: false };
         aoA = new THREE.WebGLRenderTarget(aw, ah, ao); aoB = new THREE.WebGLRenderTarget(aw, ah, ao);

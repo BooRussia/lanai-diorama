@@ -3004,7 +3004,7 @@ mesh(new THREE.CylinderGeometry(0.2,0.18,0.55,20),std({color:'#dcdcda',roughness
 const hemi=new THREE.HemisphereLight('#dfe9f5','#8a7a60',0.3);scene.add(hemi);
 const sun=new THREE.DirectionalLight('#fff3e2',2.0);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
 Object.assign(sun.shadow.camera,{left:-13,right:13,top:13,bottom:-13,near:1,far:90});sun.shadow.bias=-0.0004;sun.shadow.normalBias=0.03;scene.add(sun);scene.add(sun.target);
-camera.far=2000;camera.updateProjectionMatrix();
+camera.near=0.5;camera.far=2000;camera.updateProjectionMatrix();
 const sky=window.LanaiSky?LanaiSky.create({THREE,scene,renderer,camera,board:{x0:PX0,x1:PX1,z0:PZ0,z1:PZ1,top:0,bottom:PB},ground:{cx:GC.cx,cz:GC.cz,r:GC.r,top:GC.top,rim:RIM},soilTopColor:'#6e4c31',soilBottomColor:'#3e2a1c'}):null;
 /* fallback lighting if the sky module is unavailable */
 const warm=new THREE.Color('#ffa868'),noon=new THREE.Color('#fff4e4'),moonC=new THREE.Color('#9fb6e8');
